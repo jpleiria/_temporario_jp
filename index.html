@@ -1,447 +1,535 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="pt-PT">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard de Canais de Rádio - Central V5</title>
+    <title>Trânsito em Tempo Real</title>
+    <link rel="icon" href="favicon.ico">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    
     <style>
-        :root {
-            --cor-disponivel: #2ecc71;
-            --cor-reservado: #f1c40f;
-            --cor-ocupado: #e74c3c;
-            --cor-texto-escuro: #2c3e50;
+        body { margin: 0; padding: 0; background: #000; overflow: hidden; font-family: 'Chakra Petch', sans-serif; }
+        #map { height: 100vh; width: 100vw; z-index: 1; background: #09090b; cursor: crosshair; }
+
+        /* --- TÍTULO --- */
+        #dashboardTitle {
+            position: absolute; top: 20px; left: 20px; z-index: 2000;
+            font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: 1.6rem;
+            color: #fff; text-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+            background: rgba(15, 23, 42, 0.85); padding: 10px 20px; border-radius: 4px;
+            border-left: 5px solid #3b82f6; pointer-events: none; letter-spacing: 2px;
         }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f6f9;
-            margin: 0;
-            padding: 20px;
-            color: var(--cor-texto-escuro);
-        }
-
-        .header-central {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        h1 {
-            color: #1a252f;
-            margin: 0 0 10px 0;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        /* Controlos do Painel (Botão e Legenda) */
-        .controlos-painel {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            max-width: 1400px;
-            margin: 0 auto 20px auto;
-            background: white;
-            padding: 15px 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-
-        .legenda {
-            display: flex;
-            gap: 20px;
-            font-weight: bold;
-        }
-
-        .legenda-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .quadrado-cor {
-            width: 20px;
-            height: 20px;
-            border-radius: 4px;
-        }
-
-        /* Botão de Expandir / Contrair */
-        .btn-toggle-visao {
-            background-color: #3498db;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            font-size: 1em;
-            font-weight: bold;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .btn-toggle-visao:hover { background-color: #2980b9; }
-
-        .dashboard-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        @media (max-width: 900px) {
-            .dashboard-container { grid-template-columns: 1fr; }
-        }
-
-        .rede-coluna {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-
-        .rede-titulo {
-            text-align: center;
-            background-color: #2c3e50;
-            color: white;
-            padding: 10px;
-            margin-top: 0;
-            border-radius: 4px;
-        }
-
-        .categoria-seccao {
-            margin-top: 20px;
-            transition: all 0.3s ease;
-        }
-
-        /* Esconder secções vazias no modo reduzido */
-        .categoria-seccao.hidden { display: none; }
-
-        .categoria-titulo {
-            font-size: 1.2em;
-            border-bottom: 2px solid #eceff1;
-            padding-bottom: 5px;
-            color: #7f8c8d;
-            margin-bottom: 10px;
-        }
-
-        .canais-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-            gap: 12px;
-        }
-
-        .canal-card {
-            padding: 15px;
-            border-radius: 6px;
-            text-align: center;
-            font-weight: bold;
-            color: white;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-
-        .canal-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-        }
-
-        /* Classes de Estado Visuais */
-        .disponivel { background-color: var(--cor-disponivel); color: white; }
-        .reservado { background-color: var(--cor-reservado); color: #2c3e50; }
-        .ocupado { background-color: var(--cor-ocupado); color: white; }
-
-        /* Ocultação de canais disponíveis no Modo Reduzido */
-        .modo-reduzido .disponivel { display: none; }
-
-        .detalhe-card {
+        #dashboardTitle span {
             display: block;
-            font-size: 0.8em;
-            font-weight: normal;
-            margin-top: 5px;
-            background: rgba(0, 0, 0, 0.12);
-            padding: 2px 5px;
-            border-radius: 3px;
-            word-break: break-word;
-        }
-        .reservado .detalhe-card { background: rgba(255, 255, 255, 0.6); }
-
-        /* Janela Modal */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.2s ease;
-            z-index: 1000;
         }
 
-        .modal-overlay.active { opacity: 1; pointer-events: auto; }
-
-        .modal-content {
-            background: white;
-            padding: 25px;
-            border-radius: 8px;
-            width: 90%;
-            max-width: 450px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-            text-align: center;
+        .title-main {
+            font-size: 1.6rem;
         }
 
-        .modal-content h3 { margin-top: 0; color: #2c3e50; }
-
-        .modal-input {
-            width: 100%;
-            padding: 10px;
-            margin: 15px 0;
-            box-sizing: border-box;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 1em;
+        .title-sub {
+            font-size: 1.2rem;
+            letter-spacing: 3px;
+            opacity: 0.75;
         }
+/* Animação para o efeito de Gravação/Live */
+@keyframes pulse-live {
+    0% { opacity: 1; }
+    50% { opacity: 0.3; }  /* Fica quase transparente a meio */
+    100% { opacity: 1; }
+}
+@keyframes pulse-red {
+    0% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.3; transform: scale(0.9); }
+    100% { opacity: 1; transform: scale(1); }
+}
 
-        .modal-botoes { display: flex; flex-direction: column; gap: 10px; }
+.dot-live {
+    width: 10px;
+    height: 10px;
+    background-color: #ff0000;
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 10px #ff0000;
+    animation: pulse-red 1.5s infinite ease-in-out;
+    flex-shrink: 0; /* Impede que o ponto esmague se o texto for longo */
+}
 
-        .btn { padding: 12px; border: none; border-radius: 4px; font-size: 1em; font-weight: bold; cursor: pointer; color: white; }
-        .btn-ocupar { background-color: var(--cor-ocupado); }
-        .btn-reservar { background-color: var(--cor-reservado); color: #2c3e50; }
-        .btn-atualizar { background-color: #2980b9; }
-        .btn-libertar { background-color: #34495e; }
-        .btn-cancelar { background-color: #95a5a6; }
+.live-blink {
+    animation: pulse-live 2s infinite ease-in-out;
+}
+
+   /* --- LOGOS E RELÓGIO (Adicionados abaixo do título) --- */
+        .header-assets { display: flex; align-items: center; gap: 15px; margin-top: 10px; }
+        .header-assets img { height: 40px; width: auto; }
         
-        .aviso-vazio {
-            grid-column: 1 / -1;
-            text-align: center;
-            color: #95a5a6;
-            font-style: italic;
-            padding: 15px;
+        #digitalClock {
+            font-family: 'Orbitron', sans-serif; color: #3b82f6;
+            font-size: 2rem; font-weight: 700; border-top: 1px solid rgba(59, 130, 246, 0.3);
+            margin-top: 10px; padding-top: 8px;
         }
+
+        /* --- JANELA DE LUPA PRO --- */
+        #zoomWindow {
+            position: absolute; top: 20px; right: 20px;
+            width: 360px; height: 400px; z-index: 2000;
+            background: #0f172a; border: 2px solid #3b82f6; border-radius: 4px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.9); overflow: hidden; display: flex; flex-direction: column;
+        }
+        #miniMapContainer { position: relative; flex-grow: 1; width: 100%; height: 100%; }
+        #miniMap { width: 100%; height: 100%; background: #1e293b; }
+        .scanline { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to bottom, rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%); background-size: 100% 4px; pointer-events: none; z-index: 1000; opacity: 0.4; }
+        
+        #timerBar { height: 3px; background: #1e293b; width: 100%; }
+        #timerFill { height: 100%; background: #3b82f6; width: 0%; transition: width 0.1s linear; }
+
+       #zoomLabel { 
+    background: #0f172a; 
+    color: #3b82f6; 
+    padding: 10px 15px; /* Ajuste suave do padding */
+    font-family: 'Orbitron'; 
+    font-size: 1rem; 
+    border-top: 1px solid #334155; 
+    
+    /* Alinhamento */
+    display: flex; 
+    flex-direction: column;
+    gap: 4px;
+}
+
+.zoomLabel-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#trafficSpeedInfo {
+    font-size: 0.75rem;
+    font-family: 'Chakra Petch';
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#trendArrow {
+    font-size: 0.8rem;
+    font-weight: 900;
+}
+
+.severity-bar-track {
+    width: 100%;
+    height: 6px;
+    background: #1e293b;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 2px;
+}
+
+.severity-bar-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 3px;
+    background: #334155;
+    transition: width 0.5s ease, background-color 0.5s ease;
+}
+
+#dataHealthWidget {
+    position: absolute; bottom: 5px; left: 5px; z-index: 3000;
+    color: #64748b; font-size: 0.65rem; font-family: 'Orbitron';
+}
+
+        /* --- WIDGETS LADO ESQUERDO --- */
+        .widget-box {
+            background: rgba(15, 23, 42, 0.95); border: 1px solid #334155;
+            padding: 12px 20px; border-radius: 4px; pointer-events: none;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.8); width: fit-content;
+        }
+        .widget-label { color: #94a3b8; font-size: 0.7rem; letter-spacing: 1px; font-family: 'Orbitron'; margin-bottom: 4px; }
+        .widget-value { color: #fff; font-size: 1.1rem; font-weight: 700; }
+        
+                #riskWidget { 
+    position: absolute; 
+    bottom: 210px; /* Pode ajustar este valor para 340px se quiser que suba para a posição do antigo */
+    left: 20px; 
+    z-index: 2000; 
+    border-left: 5px solid #64748b; 
+}
+        .map-legend { position: absolute; bottom: 25px; left: 20px; z-index: 2000; }
+
+        .legend-title { font-weight: bold; margin-bottom: 5px; color: #fff; border-bottom: 1px solid #475569; padding-bottom: 3px; font-size: 0.8rem; }
+        .legend-item { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; font-size: 0.8rem; color: #cbd5e1; }
+        .line { width: 20px; height: 4px; border-radius: 2px; }
+
+        .cb-badge { background-color: #dc2626; color: #fff; border: 2px solid #fff; border-radius: 4px; font-weight: 700; font-size: 10px; padding: 2px 4px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        #statusMsg { position: absolute; bottom: 5px; right: 5px; z-index: 3000; color: #64748b; font-size: 0.65rem; font-family: 'Orbitron'; }
     </style>
 </head>
-<body class="modo-reduzido"> <div class="header-central">
-        <h1>🎙️ Gestão de Canais de Rádio - Central</h1>
-    </div>
-    
-    <div class="controlos-painel">
-        <button class="btn-toggle-visao" id="btnVisao" onclick="toggleVisao()">👁️ Expandir Painel Completo</button>
-        
-        <div class="legenda">
-            <div class="legenda-item"><div class="quadrado-cor" style="background-color: var(--cor-disponivel);"></div> Disponível</div>
-            <div class="legenda-item"><div class="quadrado-cor" style="background-color: var(--cor-reservado);"></div> Reservado</div>
-            <div class="legenda-item"><div class="quadrado-cor" style="background-color: var(--cor-ocupado);"></div> Ocupado</div>
-        </div>
-    </div>
+<body>
 
-    <div class="dashboard-container" id="conteudoPainel">
-        <div class="rede-coluna" id="col-muni">
-            <h2 class="rede-titulo">🏛️ Rede Municipal</h2>
-            <div class="categoria-seccao" id="seccao-muni-manobra"><div class="categoria-titulo">Manobra</div><div class="canais-grid" id="muni-manobra"></div></div>
-            <div class="categoria-seccao" id="seccao-muni-tatico"><div class="categoria-titulo">Tático</div><div class="canais-grid" id="muni-tatico"></div></div>
-            <div class="categoria-seccao" id="seccao-muni-comando"><div class="categoria-titulo">Comando</div><div class="canais-grid" id="muni-comando"></div></div>
+    <div id="map"></div>
+
+    <div id="dashboardTitle">
+        <span class="title-main">TRÂNSITO<br>EM TEMPO REAL</span>
+        <span class="title-sub">LEIRIA</span>
+ <div class="header-assets">
+            <img src="leiria.png" alt="Logo 1">
+            <img src="logo.png" alt="Logo 2">
+            <img src="logo3.png" id="logo" class="live-blink">
         </div>
 
-        <div class="rede-coluna" id="col-anepc">
-            <h2 class="rede-titulo">🚒 Rede ANEPC</h2>
-            <div class="categoria-seccao" id="seccao-anepc-manobra"><div class="categoria-titulo">Manobra</div><div class="canais-grid" id="anepc-manobra"></div></div>
-            <div class="categoria-seccao" id="seccao-anepc-tatico"><div class="categoria-titulo">Tático</div><div class="canais-grid" id="anepc-tatico"></div></div>
-            <div class="categoria-seccao" id="seccao-anepc-comando"><div class="categoria-titulo">Comando</div><div class="canais-grid" id="anepc-comando"></div></div>
-        </div>
+        <div id="digitalClock">00:00:00</div>
     </div>
 
-    <div class="modal-overlay" id="modalCanal">
-        <div class="modal-content">
-            <h3 id="modalTitulo">Configurar Canal</h3>
-            <div>
-                <label for="txtOcorrencia">Identificação / Legenda da Ocorrência:</label>
-                <input type="text" id="txtOcorrencia" class="modal-input" placeholder="Ex: Incêndio Urbano #104">
+    <div id="zoomWindow">
+        <div id="miniMapContainer"><div id="miniMap"></div><div class="scanline"></div></div>
+        <div id="timerBar"><div id="timerFill"></div></div>
+        <div id="zoomLabel">
+            <div class="zoomLabel-top">
+                <span id="spotName">A INICIAR...</span>
+                <span id="modeBadge" class="dot-live"></span>
             </div>
-            <div class="modal-botoes">
-                <button class="btn btn-ocupar" id="btnOcupar">Marcar Ocupado (Vermelho)</button>
-                <button class="btn btn-reservar" id="btnReservar">Marcar Reservado (Amarelo)</button>
-                <button class="btn btn-atualizar" id="btnAtualizar">Atualizar Legenda</button>
-                <button class="btn btn-libertar" id="btnLibertar">Libertar Canal (Verde)</button>
-                <button class="btn btn-cancelar" id="btnCancelar">Voltar / Cancelar</button>
+            <div id="trafficSpeedInfo">
+                <span id="speedInfoText">A obter dados TomTom...</span>
+                <span id="trendArrow"></span>
             </div>
+            <div class="severity-bar-track"><div class="severity-bar-fill" id="severityBarFill"></div></div>
         </div>
     </div>
+
+    <div id="dataHealthWidget">A validar dados TomTom...</div>
+
+    <div class="widget-box" id="riskWidget">
+        <div class="widget-label"><i class="fa-solid fa-fire"></i> RISCO INCÊNDIO</div>
+        <div class="widget-value" id="riskValue">--</div>
+        <div style="font-size:0.7rem; color:#64748b">CONCELHO DE LEIRIA</div>
+    </div>
+
+    <div class="widget-box map-legend">
+        <div class="legend-title">TRÂNSITO TEMPO REAL</div>
+        <div class="legend-item"><span class="line" style="background:#22c55e"></span> Fluido</div>
+        <div class="legend-item"><span class="line" style="background:#f59e0b"></span> Lento</div>
+        <div class="legend-item"><span class="line" style="background:#ef4444"></span> Parado</div>
+        <div class="legend-title" style="margin-top:8px">CORPOS BOMBEIROS</div>
+        <div class="legend-item"><span style="width:12px; height:12px; background:#dc2626; border:1px solid #fff; display:inline-block; border-radius:2px;"></span> Bombeiros (CB)</div>
+    </div>
+
+    <div id="statusMsg">SCH2ª João Paulo Pereira | CBSL</div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/osmtogeojson@3.0.0-beta.4/osmtogeojson.js"></script>
 
     <script>
-        const configuracaoCanais = [
-            { rede: 'muni', categoria: 'manobra', prefixo: 'Manobra', max: 7 },
-            { rede: 'muni', categoria: 'tatico', prefixo: 'Tático', max: 5 },
-            { rede: 'muni', categoria: 'comando', prefixo: 'Comando', max: 5 },
-            { rede: 'anepc', categoria: 'manobra', prefixo: 'Manobra', max: 7 },
-            { rede: 'anepc', categoria: 'tatico', prefixo: 'Tático', max: 5 },
-            { rede: 'anepc', categoria: 'comando', prefixo: 'Comando', max: 5 }
-        ];
+        // Chave da API TomTom (Traffic Flow API) usada apenas para obter a
+        // velocidade real de trânsito em cada ponto e mostrar "quanto lento" está.
+        const TOMTOM_API_KEY = "vAeVCga6NENozBACkBnkP9lEEosb7mXR";
 
-        let estadoCanais = JSON.parse(localStorage.getItem('sistema_canais_radio_v5')) || {};
-        let idCanalSelecionado = null;
-        let nomeCanalSelecionado = "";
-        let modoExpandido = false;
+        // 1. RELÓGIO
+    function updateClock() {
+        const now = new Date();
+        document.getElementById('digitalClock').innerText = now.toLocaleTimeString('pt-PT');
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
 
-        const modal = document.getElementById('modalCanal');
-        const modalTitulo = document.getElementById('modalTitulo');
-        const txtOcorrencia = document.getElementById('txtOcorrencia');
-        const btnOcupar = document.getElementById('btnOcupar');
-        const btnReservar = document.getElementById('btnReservar');
-        const btnAtualizar = document.getElementById('btnAtualizar');
-        const btnLibertar = document.getElementById('btnLibertar');
-        const btnCancelar = document.getElementById('btnCancelar');
+    // 2. CONFIGURAÇÃO DOS MAPAS
+    const getTrafficUrl = () => `https://mt1.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}&t=${Date.now()}`;
+    
+    let currentMainLayer, currentMiniLayer;
+    
+    // Mapa Principal
+    const map = L.map('map', { zoomControl: false, attributionControl: false, zoomSnap: 0 });
+    currentMainLayer = L.tileLayer(getTrafficUrl(), { maxZoom: 20 }).addTo(map);
+    map.fitBounds([[39.63, -9.02], [39.97, -8.55]]);
 
-        // Renderizar Canais e carregar estado guardado
-        configuracaoCanais.forEach(conf => {
-            const container = document.getElementById(`${conf.rede}-${conf.categoria}`);
-            for (let i = 1; i <= conf.max; i++) {
-                const idUnico = `${conf.rede}_${conf.categoria}_${i}`;
-                const nomeExibicao = `${conf.prefixo} ${i}`;
-                
-                const card = document.createElement('div');
-                card.id = idUnico;
-                
-                if (estadoCanais[idUnico] && estadoCanais[idUnico].estado !== 'disponivel') {
-                    card.className = `canal-card ${estadoCanais[idUnico].estado}`;
-                    card.innerHTML = `${nomeExibicao} <span class="detalhe-card">${estadoCanais[idUnico].ocorrencia}</span>`;
-                } else {
-                    card.className = 'canal-card disponivel';
-                    card.innerText = nomeExibicao;
-                    estadoCanais[idUnico] = { estado: 'disponivel', ocorrencia: '' };
-                }
-                
-                card.addEventListener('click', () => abrirModal(idUnico, nomeExibicao));
-                container.appendChild(card);
-            }
-        });
+    // Mini Mapa (Janela de Zoom)
+const miniMap = L.map('miniMap', { 
+    zoomControl: false, 
+    attributionControl: false, 
+    zoomSnap: 0, 
+    dragging: false,
+    fadeAnimation: false // Desativar animação evita o flash cinzento
+});
+currentMiniLayer = L.tileLayer(getTrafficUrl(), { 
+    maxZoom: 20,
+    updateWhenIdle: false 
+}).addTo(miniMap);
 
-        function salvarDados() {
-            localStorage.setItem('sistema_canais_radio_v5', JSON.stringify(estadoCanais));
-            verificarCategoriasVazias();
-        }
+    const hotSpots = [
+        { name: "ROTUNDA - D. DINIS", loc: [39.73926874806997, -8.818065427592712], zoom: 17 },
+        { name: "ROTUNDA - FERRUS", loc: [39.76356960495452, -8.782836987121206], zoom: 17 },
+        { name: "ROTUNDA - CINEMACITY", loc: [39.74730983237065, -8.82013089411456], zoom: 17 },
+        { name: "ROTUNDA - OLIVEIRAS/GRELHA", loc: [39.75472558940458, -8.815825236206226], zoom: 16 },
+        { name: "ROTUNDA - HOSPITAL", loc: [39.741332730956756, -8.793057953775264], zoom: 17 },
+        { name: "ROTUNDA - CRUZ D´AREIA", loc: [39.7341341099626, -8.808602522815464], zoom: 17 },
+        { name: "ROTUNDA - LEIRIASHOPING", loc: [39.73595196099935, -8.823381742940684], zoom: 16 },
+        { name: "ROTUNDA - SINALEIRO", loc: [39.74333125740587, -8.806518602151048], zoom: 18 },
+        { name: "CRUZAMENTO - CMLEIRIA", loc: [39.741419671031714, -8.810535461363612], zoom: 17 },
+        { name: "ROTUNDA - CUF", loc: [39.74546085657325, -8.8176528709753], zoom: 17 },
+        { name: "ROTUNDA - VALE LOBOS", loc: [39.73544585705467, -8.799190470413837], zoom: 17 },
+        { name: "CRUZAMENTO - PLANALTO", loc: [39.756489811605135, -8.787857207718456], zoom: 18 }
+    ];
 
-        // Alternar visualização (Reduzida vs Expandida)
-        function toggleVisao() {
-            modoExpandido = !modoExpandido;
-            const body = document.body;
-            const btn = document.getElementById('btnVisao');
-            
-            if (modoExpandido) {
-                body.classList.remove('modo-reduzido');
-                btn.innerText = "👁️ Recolher para Canais Ativos";
-            } else {
-                body.classList.add('modo-reduzido');
-                btn.innerText = "👁️ Expandir Painel Completo";
-            }
-            verificarCategoriasVazias();
-        }
+    let currentSpotIndex = 0;
+    const ROTATION_TIME = 5000;
+    let timeLeft = ROTATION_TIME;
+    let lastFrameTime = Date.now();
 
-        // Verifica e oculta secções inteiras se não houver canais ativos nelas (Modo Reduzido)
-        function verificarCategoriasVazias() {
-            configuracaoCanais.forEach(conf => {
-                const seccao = document.getElementById(`seccao-${conf.rede}-${conf.categoria}`);
-                const grid = document.getElementById(`${conf.rede}-${conf.categoria}`);
-                
-                // Remove avisos antigos de vazio
-                const avisoAntigo = grid.querySelector('.aviso-vazio');
-                if (avisoAntigo) avisoAntigo.remove();
-
-                if (!modoExpandido) {
-                    // Contar quantos ativos existem nesta categoria
-                    let ativos = 0;
-                    for (let i = 1; i <= conf.max; i++) {
-                        const idUnico = `${conf.rede}_${conf.categoria}_${i}`;
-                        if (estadoCanais[idUnico].estado !== 'disponivel') ativos++;
-                    }
-                    
-                    if (ativos === 0) {
-                        seccao.classList.add('hidden');
-                    } else {
-                        seccao.classList.remove('hidden');
-                    }
-                } else {
-                    seccao.classList.remove('hidden');
-                }
-            });
-        }
-
-        function abrirModal(idUnico, nomeExibicao) {
-            idCanalSelecionado = idUnico;
-            nomeCanalSelecionado = nomeExibicao;
-            modalTitulo.innerText = `Gerir: ${nomeExibicao}`;
-            
-            const canalAtual = estadoCanais[idUnico];
-            txtOcorrencia.value = canalAtual.ocorrencia;
-
-            if (canalAtual.estado === 'disponivel') {
-                btnOcupar.style.display = "block";
-                btnReservar.style.display = "block";
-                btnAtualizar.style.display = "none";
-                btnLibertar.style.display = "none";
-            } else {
-                // Se já estiver em uso, permite atualizar legenda ou libertar
-                btnOcupar.style.display = "none";
-                btnReservar.style.display = "none";
-                btnAtualizar.style.display = "block";
-                btnLibertar.style.display = "block";
-            }
-
-            modal.classList.add('active');
-        }
-
-        function fecharModal() {
-            modal.classList.remove('active');
-            idCanalSelecionado = null;
-        }
-
-        function aplicarEstado(classeEstado) {
-            const info = txtOcorrencia.value.trim();
-            if (info === "") {
-                alert("Por favor, introduza a legenda/ocorrência.");
-                return;
-            }
-            
-            estadoCanais[idCanalSelecionado] = { estado: classeEstado, ocorrencia: info };
-            salvarDados();
-
-            const card = document.getElementById(idCanalSelecionado);
-            card.className = `canal-card ${classeEstado}`;
-            card.innerHTML = `${nomeCanalSelecionado} <span class="detalhe-card">${info}</span>`;
-            
-            fecharModal();
-        }
-
-        // Função exclusiva para apenas editar o texto, mantendo a mesma cor (estado)
-        btnAtualizar.addEventListener('click', () => {
-            const info = txtOcorrencia.value.trim();
-            if (info === "") {
-                alert("A legenda não pode ficar vazia. Se pretender limpar, use o botão 'Libertar'.");
-                return;
-            }
-            const estadoAtual = estadoCanais[idCanalSelecionado].estado;
-            aplicarEstado(estadoAtual);
-        });
-
-        btnOcupar.addEventListener('click', () => aplicarEstado('ocupado'));
-        btnReservar.addEventListener('click', () => aplicarEstado('reservado'));
+    // 3. CICLO DE ANIMAÇÃO
+    function gameLoop() {
+        requestAnimationFrame(gameLoop);
+        const now = Date.now();
+        const dt = now - lastFrameTime;
+        lastFrameTime = now;
+        timeLeft -= dt;
         
-        btnLibertar.addEventListener('click', () => {
-            estadoCanais[idCanalSelecionado] = { estado: 'disponivel', ocorrencia: '' };
-            salvarDados();
+        document.getElementById('timerFill').style.width = `${Math.max(0, (timeLeft / ROTATION_TIME) * 100)}%`;
+        
+        if (timeLeft <= 0) {
+            currentSpotIndex = (currentSpotIndex + 1) % hotSpots.length;
+            updateSpot();
+        }
+    }
 
-            const card = document.getElementById(idCanalSelecionado);
-            card.className = 'canal-card disponivel';
-            card.innerHTML = nomeCanalSelecionado;
-            
-            fecharModal();
+    function updateSpot() {
+    const spot = hotSpots[currentSpotIndex];
+    
+    // Força o mapa a reconhecer o seu tamanho real antes de mudar a vista
+    miniMap.invalidateSize();
+    
+    // Mudar a localização
+    miniMap.setView(spot.loc, spot.zoom, { animate: false });
+    
+    document.getElementById('spotName').innerText = spot.name;
+    updateSpeedInfo(spot);
+    timeLeft = ROTATION_TIME;
+}
+
+    // 3b. INFORMAÇÃO DE LENTIDÃO (TOMTOM) — com cache da última leitura válida,
+    // barra de severidade visual e seta de tendência (a piorar/melhorar).
+    function updateSpeedInfo(spot) {
+        const textEl = document.getElementById('speedInfoText');
+        const trendEl = document.getElementById('trendArrow');
+        const barFill = document.getElementById('severityBarFill');
+
+        // Ainda não há nenhuma leitura (nem atual nem em cache)
+        if (spot.dataAvailable === undefined && !spot.lastValid) {
+            textEl.innerText = "A obter dados TomTom...";
+            textEl.style.color = "#94a3b8";
+            trendEl.innerText = "";
+            barFill.style.width = "0%";
+            barFill.style.background = "#334155";
+            return;
+        }
+
+        // Nunca houve leitura válida para este ponto
+        if (!spot.dataAvailable && !spot.lastValid) {
+            textEl.innerText = "Sem dados de trânsito disponíveis";
+            textEl.style.color = "#64748b";
+            trendEl.innerText = "";
+            barFill.style.width = "0%";
+            barFill.style.background = "#334155";
+            return;
+        }
+
+        // Usa a leitura atual, ou cai para a última válida em cache (falha momentânea)
+        const usingCache = !spot.dataAvailable;
+        const source = usingCache ? spot.lastValid : spot;
+        const pct = source.congestionPct;
+
+        let cor = "#22c55e", texto = "Fluido";
+        if (pct >= 50) { cor = "#ef4444"; texto = "Parado"; }
+        else if (pct >= 20) { cor = "#f59e0b"; texto = "Lento"; }
+
+        let staleTxt = "";
+        if (usingCache && source.timestamp) {
+            const minsAgo = Math.max(1, Math.round((Date.now() - source.timestamp) / 60000));
+            staleTxt = ` · desatualizado há ${minsAgo} min`;
+        }
+
+        textEl.innerText = `${texto} · -${pct}% (${source.currentSpeed} km/h de ${source.freeFlowSpeed} km/h)${staleTxt}`;
+        textEl.style.color = usingCache ? "#64748b" : cor;
+
+        barFill.style.width = `${Math.min(100, pct)}%`;
+        barFill.style.background = usingCache ? "#475569" : cor;
+
+        // Seta de tendência com base no histórico recente do ponto
+        trendEl.innerText = "";
+        if (spot.history && spot.history.length >= 2) {
+            const prev = spot.history[spot.history.length - 2];
+            const curr = spot.history[spot.history.length - 1];
+            if (curr > prev + 3) { trendEl.innerText = "▲"; trendEl.style.color = "#ef4444"; trendEl.title = "A piorar"; }
+            else if (curr < prev - 3) { trendEl.innerText = "▼"; trendEl.style.color = "#22c55e"; trendEl.title = "A melhorar"; }
+            else { trendEl.innerText = "▬"; trendEl.style.color = "#94a3b8"; trendEl.title = "Estável"; }
+        }
+    }
+
+    async function fetchSpotTraffic(spot) {
+        try {
+            const url = `https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json?point=${spot.loc[0]},${spot.loc[1]}&key=${TOMTOM_API_KEY}`;
+            const res = await fetch(url);
+            if (!res.ok) throw new Error('Resposta inválida da TomTom');
+            const data = await res.json();
+            const fs = data.flowSegmentData;
+            if (!fs || !fs.freeFlowSpeed) throw new Error('Sem dados de fluxo');
+
+            spot.currentSpeed = Math.round(fs.currentSpeed);
+            spot.freeFlowSpeed = Math.round(fs.freeFlowSpeed);
+            spot.congestionPct = Math.max(0, Math.round((1 - (fs.currentSpeed / fs.freeFlowSpeed)) * 100));
+            spot.dataAvailable = true;
+
+            // Guarda como última leitura válida (usada se o próximo pedido falhar)
+            spot.lastValid = {
+                currentSpeed: spot.currentSpeed,
+                freeFlowSpeed: spot.freeFlowSpeed,
+                congestionPct: spot.congestionPct,
+                timestamp: Date.now()
+            };
+
+            // Histórico curto para calcular a tendência (mantém só os últimos 4 valores)
+            spot.history = spot.history || [];
+            spot.history.push(spot.congestionPct);
+            if (spot.history.length > 4) spot.history.shift();
+        } catch (e) {
+            spot.dataAvailable = false;
+            console.warn(`Sem dados de trânsito para ${spot.name}:`, e.message);
+        }
+    }
+
+    function updateDataHealth() {
+        const total = hotSpots.length;
+        const ok = hotSpots.filter(s => s.dataAvailable).length;
+        const usingCacheOnly = hotSpots.filter(s => !s.dataAvailable && s.lastValid).length;
+        const el = document.getElementById('dataHealthWidget');
+
+        let txt = `DADOS TOMTOM: ${ok}/${total} OK`;
+        if (usingCacheOnly > 0) txt += ` · ${usingCacheOnly} EM CACHE`;
+        el.innerText = txt;
+        el.style.color = ok === total ? '#64748b' : (ok === 0 ? '#ef4444' : '#f59e0b');
+    }
+
+    async function refreshSpeedData() {
+        await Promise.all(hotSpots.map(fetchSpotTraffic));
+        updateDataHealth();
+        // Atualiza a informação apresentada caso o ponto atual já tenha dados novos
+        updateSpeedInfo(hotSpots[currentSpotIndex]);
+    }
+
+    // 4. ATUALIZAÇÃO DO TRÂNSITO (RESOLVE O PROBLEMA DO MAPA SUMIR)
+    function seamlessRefresh() {
+    const newUrl = getTrafficUrl();
+    
+    // Atualiza o mapa principal (aqui o método antigo funciona bem)
+    const nextMain = L.tileLayer(newUrl, { maxZoom: 20 }).addTo(map);
+    nextMain.on('load', () => {
+        if (currentMainLayer) map.removeLayer(currentMainLayer);
+        currentMainLayer = nextMain;
+    });
+
+    // NO MINI MAPA: Apenas trocamos a URL da camada atual
+    // Isto evita que o mapa fique "vazio" ao repetir o ciclo
+    if (currentMiniLayer) {
+        currentMiniLayer.setUrl(newUrl);
+    }
+
+        // Novo layer para o mini mapa
+        const nextMini = L.tileLayer(newUrl, { maxZoom: 20 }).addTo(miniMap);
+        nextMini.on('load', () => {
+            if (currentMiniLayer) miniMap.removeLayer(currentMiniLayer);
+            currentMiniLayer = nextMini;
+            // Garante que a vista atual é mantida após a troca de camada
+            const spot = hotSpots[currentSpotIndex];
+            miniMap.setView(spot.loc, spot.zoom, { animate: false });
         });
+    }
 
-        btnCancelar.addEventListener('click', fecharModal);
+    // 5. FUNÇÕES DE DADOS (Máscara, Incêndio, Alertas)
+    async function applyMask() {
+        try {
+            const response = await fetch('limite.geojson');
+            if (!response.ok) return;
+            const data = await response.json();
+            const world = [[90, -180], [90, 180], [-90, 180], [-90, -180]];
+            const hole = L.GeoJSON.coordsToLatLngs(data.features[0].geometry.coordinates, 1);
 
-        // Execução inicial para esconder categorias limpas no arranque
-        verificarCategoriasVazias();
+            L.polygon([world, hole], { 
+                color: 'transparent', fillColor: '#09090b', fillOpacity: 0.8, interactive: false 
+            }).addTo(map);
+
+            L.geoJSON(data, { 
+                style: { color: "#3b82f6", weight: 2, fill: false, interactive: false } 
+            }).addTo(map);
+
+            map.fitBounds(L.geoJSON(data).getBounds());
+        } catch (e) { console.error("Erro máscara:", e); }
+    }
+
+async function addFreguesias() {
+    try {
+        const response = await fetch('freguesias_leiria.geojson'); // Nome do teu ficheiro
+        if (!response.ok) return;
+        const data = await response.json();
+
+        L.geoJSON(data, {
+            style: {
+                color: "#2929FF",      // Cor da linha (cinzento azulado)
+                weight: 1,             // Espessura da linha
+                opacity: 0.5,          // Transparência da linha
+                fillOpacity: 0,        // Sem preenchimento para não tapar o mapa
+                interactive: false     // Não interfere com os cliques no mapa
+            }
+        }).addTo(map);
+    } catch (e) {
+        console.error("Erro ao carregar freguesias:", e);
+    }
+}
+
+    function addFireStations() {
+        const cbs = [
+            { code: "BSL", lat: 39.741155, lng: -8.800315 },
+            { code: "BVM", lat: 39.685008, lng: -8.887350 },
+            { code: "BVL", lat: 39.767401, lng: -8.816472 },
+            { code: "BVL", lat: 39.882945, lng: -8.837566 },
+            { code: "BVO", lat: 39.821343, lng: -8.839415 }
+        ];
+        cbs.forEach(cb => {
+            const icon = L.divIcon({ className: 'dummy', html: `<div class="cb-badge">${cb.code}</div>`, iconSize: [32, 12] });
+            L.marker([cb.lat, cb.lng], { icon: icon }).addTo(map);
+        });
+    }
+
+    async function fetchRisk() {
+        try {
+            const r = await fetch('https://api.ipma.pt/open-data/forecast/meteorology/rcm/rcm-d0.json');
+            const d = await r.json();
+            const nivel = d.local["1009"]?.data.rcm || 0;
+            const info = { 1: {t:"REDUZIDO",c:"#22c55e"}, 2: {t:"MODERADO",c:"#eab308"}, 3: {t:"ELEVADO",c:"#f97316"}, 4: {t:"M. ELEVADO",c:"#ef4444"}, 5: {t:"MÁXIMO",c:"#dc2626"} }[nivel] || {t:"N/D",c:"#64748b"};
+            const el = document.getElementById('riskValue');
+            el.innerText = info.t; el.style.color = info.c;
+            document.getElementById('riskWidget').style.borderLeftColor = info.c;
+        } catch(e) {}
+    }
+
+    // 6. INICIALIZAÇÃO
+    applyMask(); 
+    addFreguesias();
+    addFireStations(); 
+    fetchRisk(); 
+    document.getElementById('dataHealthWidget').innerText = "A validar dados TomTom...";
+    refreshSpeedData();
+    updateSpot(); 
+    gameLoop();
+
+    // 7. INTERVALOS DE ATUALIZAÇÃO
+    setInterval(seamlessRefresh, 60000); // Trânsito a cada 60s
+    setInterval(fetchRisk, 3600000);     // Risco Incêndio a cada 1h
+    setInterval(refreshSpeedData, 120000); // Dados TomTom (lentidão) a cada 2 min
     </script>
 </body>
+
 </html>
